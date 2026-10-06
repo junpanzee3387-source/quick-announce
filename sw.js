@@ -1,5 +1,5 @@
 /* 更新するときは CACHE_NAME の番号を必ず変える（v3 → v4 …） */
-const CACHE_NAME = 'yakyuban-offline-v3';
+const CACHE_NAME = 'yakyuban-offline-v4';
 /* './index.html' ではなく './' を使う（Cloudflare Pages は /index.html を / へリダイレクトするため） */
 const APP_SHELL = [
   './',
