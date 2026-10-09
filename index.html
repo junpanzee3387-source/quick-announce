@@ -509,7 +509,6 @@ table.fsb .fs-none{color:var(--sub);opacity:.45;font-weight:400}
 </style>
 
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#1f5fbf">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1702,14 +1701,21 @@ function build(){
     const nextOf=it=>{const n=it.newPos!==it.oldPos?byOld[it.newPos]:null;return n&&n!==it?n:null;};
     const hasPrev=new Set();moveItems.forEach(it=>{const n=nextOf(it);if(n)hasPrev.add(n);});
     const walk=start=>{const arr=[];let c=start;while(c&&!seen.has(c)){seen.add(c);arr.push(c);c=nextOf(c);}return arr;};
-    /* 1) 鎖状（誰の移動先にもなっていない変更から開始）：投手へ入って終わる交代は、ここで自然に最後になる */
-    moveItems.filter(it=>!hasPrev.has(it)).sort((a,b)=>a.o-b.o).forEach(it=>{if(!seen.has(it))groups.push(walk(it));});
-    /* 2) 輪（入れ替え・循環）：投手が退く変更（oldPos==='投'）を起点にはせず、それ以外で打順が早いものから開始する */
+    /* 投手が関係する連鎖：ピッチャーから退く変更を先頭、ピッチャーに入る変更を最後にする（投手の出入りが両方ある連鎖だけ。投手が関係しない連鎖は従来どおり）。
+       連鎖は「…→(投手に入る変更)→(投手から退く変更)→…」とつながっているので、退く変更が先頭になるよう回転させれば、入る変更が最後になる */
+    const pitchRot=arr=>{
+      const k=arr.findIndex(x=>x.oldPos==='投');
+      if(k<=0||!arr.some(x=>x.newPos==='投'))return arr;
+      return arr.slice(k).concat(arr.slice(0,k));
+    };
+    /* 1) 鎖状（誰の移動先にもなっていない変更から開始） */
+    moveItems.filter(it=>!hasPrev.has(it)).sort((a,b)=>a.o-b.o).forEach(it=>{if(!seen.has(it))groups.push(pitchRot(walk(it)));});
+    /* 2) 輪（入れ替え・循環）：投手が関係する輪は、投手が退く変更から始めて投手に入る変更で終える。投手が関係しない輪は、打順が早いものから開始（従来どおり） */
     moveItems.filter(it=>!seen.has(it)).forEach(it=>{
       if(seen.has(it))return;
       const cyc=[];let c=it;const local=new Set();while(c&&!local.has(c)){local.add(c);cyc.push(c);c=nextOf(c);}
-      const cand=cyc.filter(x=>x.oldPos!=='投');
-      const start=(cand.length?cand:cyc).slice().sort((a,b)=>a.o-b.o)[0];
+      const pOut=cyc.find(x=>x.oldPos==='投');
+      const start=pOut||cyc.slice().sort((a,b)=>a.o-b.o)[0];
       groups.push(walk(start));
     });
   }else moveItems.forEach(it=>groups.push([it]));
