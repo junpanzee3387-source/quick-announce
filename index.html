@@ -72,6 +72,8 @@ input,select{font:inherit;width:100%;padding:9px;border-radius:8px;border:1px so
 .coldrow button{padding:6px 10px;font-size:12px}
 #s_err{color:#d33;font-weight:700;min-height:1.2em}
 #note{color:var(--warn);font-size:13px;font-weight:700;margin-top:8px;min-height:1em}
+.card.lpress{animation:lpress .6s linear forwards}
+@keyframes lpress{from{box-shadow:0 0 0 0 var(--warn);border-color:var(--line)}to{box-shadow:0 0 0 6px var(--warn);border-color:var(--warn)}}
 .card.removed{opacity:.5;cursor:not-allowed;background:var(--bg)}
 .card.removed .pos{color:var(--warn);font-weight:700}
 .dhbox{font-size:12px;line-height:1.55;margin-top:6px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
@@ -626,7 +628,7 @@ table.fsb .fs-none{color:var(--sub);opacity:.45;font-weight:400}
     <div class="panel" id="atkBenchPanel">
       <div id="a_pitcher" style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line)"></div>
       <h3>ベンチ</h3><div class="list" id="a_bench"></div>
-      <div class="pinchAsk" style="margin-top:8px">代打・代走の場合は、ベンチの選手を打席・出塁中の選手の上にドラッグしてください。</div>
+      <div class="pinchAsk" style="margin-top:8px">代打・代走の場合は、ベンチの選手を打席・出塁中の選手の上にドラッグしてください。<br><b>臨時代走の場合は、塁上の走者を長押ししてください。</b></div>
       <h3 style="margin-top:10px">退場選手</h3><div class="list" id="a_removed"></div>
     </div>
   </div>
@@ -1522,17 +1524,31 @@ function renderPitchCtr(){
 function setMid(v){F.midInning=!!v;if(!v){pcClear();}render();save();}
 function updateHInfo(){$('hinfo').textContent=`第${game.n}試合 vs ${game.o||'（相手未入力）'}　${dhStatusText()}`;}
 /* ---- ドラッグ操作 ---- */
-let drag=null,suppressClick=false,dfB='';
+let drag=null,suppressClick=false,dfB='',lpTimer=0;
+/* 長押し（塁上の走者＝臨時代走）：押している間は枠が色づき、約0.6秒で確認を出す。動かす・離すと取り消し */
+function lpCancel(){if(lpTimer){clearTimeout(lpTimer);lpTimer=0;}document.querySelectorAll('.lpress').forEach(x=>x.classList.remove('lpress'));}
+function lpFire(b){
+  lpTimer=0;document.querySelectorAll('.lpress').forEach(x=>x.classList.remove('lpress'));
+  if(!drag||drag.ghost)return;
+  drag=null;suppressClick=true; /* 指を離したときに「進塁」にならないようにする */
+  document.addEventListener('pointerup',()=>setTimeout(()=>{suppressClick=false},80),{once:true});
+  document.addEventListener('pointercancel',()=>{suppressClick=false},{once:true});
+  tempRunAsk(b);
+}
 document.addEventListener('pointerdown',e=>{
   const c=e.target.closest('.card');if(!c||c.dataset.src==='removed')return;
   drag={no:+c.dataset.no,src:c.dataset.src,pos:c.dataset.pos,el:c,x:e.clientX,y:e.clientY,ghost:null};
+  lpCancel();
+  if(String(c.dataset.src||'').indexOf('run')===0&&typeof F!=='undefined'&&F.phase==='live'&&isAttack()){
+    const b=+c.dataset.src.slice(3);c.classList.add('lpress');lpTimer=setTimeout(()=>lpFire(b),600);
+  }
 });
 /* 選手カードをドラッグ中は画面全体のスワイプ（スクロール）を止める */
 document.addEventListener('touchmove',e=>{if(drag)e.preventDefault();},{passive:false});
 document.addEventListener('pointermove',e=>{
   if(!drag)return;
   if(!drag.ghost){if(Math.hypot(e.clientX-drag.x,e.clientY-drag.y)<8)return;
-    const g=drag.el.cloneNode(true);g.classList.add('ghost');document.body.appendChild(g);drag.ghost=g;drag.el.style.opacity=.35;}
+    lpCancel();const g=drag.el.cloneNode(true);g.classList.add('ghost');document.body.appendChild(g);drag.ghost=g;drag.el.style.opacity=.35;}
   drag.ghost.style.left=e.clientX+'px';drag.ghost.style.top=e.clientY+'px';
   document.querySelectorAll('.over').forEach(x=>x.classList.remove('over'));
   const t=target(e);if(t)t.classList.add('over');
@@ -1543,6 +1559,7 @@ function target(e){const t=document.elementFromPoint(e.clientX,e.clientY);const 
   if(b&&(drag.src==='bench'||drag.src==='pitcher'||drag.src==='batter'||(drag.src&&drag.src.indexOf('run')===0)))return b;
   return null}
 document.addEventListener('pointerup',e=>{
+  lpCancel();
   if(!drag)return;const d=drag;drag=null;
   document.querySelectorAll('.over').forEach(x=>x.classList.remove('over'));
   if(d.ghost){suppressClick=true;setTimeout(()=>{suppressClick=false},80);
@@ -1557,7 +1574,7 @@ document.addEventListener('pointerup',e=>{
   render();if(typeof F!=='undefined'&&F.phase==='live')renderLive();
   if(d.ghost)warnDefChange(dfB);
 });
-document.addEventListener('pointercancel',()=>{if(drag&&drag.ghost)drag.ghost.remove();drag=null;document.querySelectorAll('.over').forEach(x=>x.classList.remove('over'));render();if(F.phase==='live')renderLive()});
+document.addEventListener('pointercancel',()=>{lpCancel();if(drag&&drag.ghost)drag.ghost.remove();drag=null;document.querySelectorAll('.over').forEach(x=>x.classList.remove('over'));render();if(F.phase==='live')renderLive()});
 /* 守備シートのドラッグ操作。戻り値：true=実行した／false=拒否／'pending'=確認ダイアログ待ち */
 function drop(d,toPos){
   const to=cur.slots.find(s=>s.pos===toPos);if(!to)return false;
@@ -2438,6 +2455,10 @@ function collapseHists(){
   for(let i=0;i<an;i++)histOpen['a'+i]=false;
 }
 function advanceHalf(){
+  if(F.tempRuns&&F.tempRuns.length){ /* 臨時代走はその回限り：次の守備に就けるか確認し、出られなければ正式な選手交代が必要 */
+    toast(`臨時代走はこの回限りです。\n${F.tempRuns.map(x=>`${nm(x.orig)}（臨時代走：${nm(x.temp)}）`).join('、')}\n次の守備に就けるか確認し、出られない場合は守備シートで選手交代を行ってください。`,'warn');
+  }
+  F.tempRuns=[];
   const label=`${F.inning}回${F.half}（${isAttack()?TEAM:(game.o||'相手')}の攻撃）`;
   const started=F.halfAnnounceStart||0;
   const chunk=F.announces.slice(started);
@@ -2447,7 +2468,7 @@ function advanceHalf(){
      打席が完了していない（pendingNextBatterでない）ときは、その打者が次の回の先頭打者になる（従来どおり） */
   if(isAttack()&&F.pendingNextBatter)F.batOrder=F.batOrder%9+1;
   if(F.half==='表')F.half='裏';else{F.half='表';F.inning++;}
-  F.bases={1:0,2:0,3:0};F.bso={b:0,s:0,o:0};F.pendingHalfEnd=false;F.showHalfEndButton=false;F.pendingNextBatter=false;F.pinchState='unset';F.confirmedInHalf=0;F.warnedPending=false;F.midInning=false;pcClear();if(F.pit)F.pit.inn=0;
+  F.bases={1:0,2:0,3:0};F.bso={b:0,s:0,o:0};F.pendingHalfEnd=false;F.showHalfEndButton=false;F.pendingNextBatter=false;F.pinchState='unset';F.paHalf=0;F.confirmedInHalf=0;F.warnedPending=false;F.midInning=false;pcClear();if(F.pit)F.pit.inn=0;
   F.halfAnnounceStart=F.announces.length;
   collapseHists(); /* 回（表裏）が変わったら、右側の履歴はすべて閉じた状態にする */
   undoStack=[]; /* 回をまたいだ「戻る」を禁止する（守備回から攻撃回へ戻れてしまうのを防止） */
@@ -2576,7 +2597,7 @@ let askThree=false;
 function showThreeOut(){if(F.phase==='live'&&F.pendingHalfEnd&&F.bso.o>=3){$('to_ann').textContent=scoreAnnText();$('threeOutModal').classList.remove('hide');}}
 function curBatterSlot(){return lineupRows().find(r=>r.order===F.batOrder);} /* 正式な打順(lineupRows)の行。実体の枠は .slot */
 function nextBatterSlot(){const i=(F.batOrder%9)+1;return lineupRows().find(r=>r.order===i);}
-function nextBatter(){F.batOrder=F.batOrder%9+1;F.pinchState='unset';F.pendingNextBatter=false;F.annInAtBat=false;setOut('a_ann_out','生成前');}
+function nextBatter(){F.paHalf=(F.paHalf||0)+1;F.batOrder=F.batOrder%9+1;F.pinchState='unset';F.pendingNextBatter=false;F.annInAtBat=false;setOut('a_ann_out','生成前');}
 /* 代打・代走のアナウンス生成／交代前後の表の表示ルール：
    ・その打者の打席中（＝「次の打者へ進む」待ちになる前）に生成したものは、その打者の出塁・アウトが確定した時点で消す（→「次の打者へ進む」ボタンだけが残る）。
      例：代打の選手を出塁／アウトにしたとき、代走を入れた後に打席の選手が出塁／アウトしたとき。
@@ -2620,6 +2641,36 @@ function substituteBench(newNo,toSlot){
   cur.bench=cur.bench.filter(n=>n!==newNo);toSlot.no=newNo;$('note').textContent=`${MASTER[newNo]}君が入りました。`;return true;
 }
 function batterAnnounceText(slot){return `バッターは　${slot.order}番　${PN[slot.pos]}　${nm(slot.no)}、背番号${dispNo(slot.no)}`;}
+/* 臨時代走者の選出（リトルシニア規定）：負傷した走者の打順の一つ前から順にさかのぼり、
+   投手・すでに塁上にいる選手・打席中の打者は飛ばして、最初に見つかった選手とする（該当者なしはnull） */
+function pickTempRunner(occ){
+  const rows=lineupRows(),me=rows.find(r=>r.no===occ);if(!me)return null;
+  const P=pitcherSlotOf(cur.slots),onBase=[1,2,3].map(k=>F.bases[k]).filter(Boolean),bat=curBatterSlot();
+  for(let i=1;i<9;i++){
+    const o=(((me.order-1-i)%9)+9)%9+1,r=rows.find(x=>x.order===o);
+    if(!r||r.pos==='投'||(P&&P.no===r.no)||onBase.includes(r.no)||(bat&&bat.no===r.no))continue;
+    return r;
+  }
+  return null;
+}
+/* 臨時代走：塁上の走者を長押しして開始。走者は規定で自動的に決まる。
+   打順・守備・ベンチの入れ替えは行わない（元の走者は試合に残る）。塁上の走者とアナウンスだけを変更する */
+function tempRunAsk(b){
+  if(F.phase!=='live'||!isAttack())return;
+  if(F.pendingHalfEnd||F.bso.o>=3){toast('3アウトが成立しています。\n「次の回へ進む」を押すか、「戻る」で修正してください。');return;}
+  const occ=F.bases[b];if(!occ)return;
+  if(!lineupRows().find(r=>r.no===occ)){toast('この走者は打順に入っていないため、臨時代走にできません。\n操作を間違えた場合は「戻る」ボタンを押してください。','warn');return;}
+  const auto=pickTempRunner(occ),baseKanji={1:'一',2:'二',3:'三'}[b];
+  if(!auto){toast('臨時代走に出せる選手がいません。','warn');return;}
+  cfm('臨時代走にしますか？',`${baseKanji}塁ランナーの${nm(occ)}の臨時代走です。\n\n規定により、${auto.order}番の${nm(auto.no)}が走者になります。`,
+    [{label:'やめる'},{label:'臨時代走にする',cls:'ok',fn:()=>{
+      snapshot();
+      F.bases[b]=auto.no;(F.tempRuns=F.tempRuns||[]).push({base:b,orig:occ,temp:auto.no}); /* この回限り：攻撃終了時に案内して消す */
+      const t=`${TEAM}、臨時代走のお知らせをいたします。\n${baseKanji}塁ランナーの${nm(occ)}に代わりまして、${nm(auto.no)}、ランナーは${nm(auto.no)}、背番号${dispNo(auto.no)}`;
+      setOut('a_ann_out',t,true);markAnnShown();logAnnounce('臨時代走',t);
+      render();renderLive();save();
+    }}]);
+}
 function dropToBase(d,key){
   if(F.pendingHalfEnd||F.bso.o>=3){toast('3アウトが成立しています。\n「次の回へ進む」を押すか、「戻る」で修正してください。');return;}
   const isBase=(key==='1'||key==='2'||key==='3');
@@ -2650,7 +2701,10 @@ function dropToBase(d,key){
         dhPinchLog(order,d.no,'代打',slot.pos); /* DH枠なら、dhEvaluate() が代打選手へのDH継承として扱う */
         /* DH消滅になる場合は確認モーダル。確定されたときだけ、アナウンス記録以降の処理を続ける */
         dhAfterOp(null,()=>{
-          const t=`${TEAM}、代打のお知らせをいたします。\n\n${order}番の${nm(oldNo)}に代わりまして、${nm(d.no)}\n\nバッターは${nm(d.no)}、背番号${dispNo(d.no)}`;
+          const leadoff=!(F.paHalf>0); /* その回（表／裏）でまだ打席を完了した打者がいない＝先頭打者 */
+          const t=leadoff
+            ?`${F.inning}回の${F.half}、${TEAM}の攻撃は、\n${order}番の${nm(oldNo)}に代わりまして、${nm(d.no)}、バッターは${nm(d.no)}、背番号${dispNo(d.no)}`
+            :`${TEAM}、代打のお知らせをいたします。\n\n${order}番の${nm(oldNo)}に代わりまして、${nm(d.no)}\n\nバッターは${nm(d.no)}、背番号${dispNo(d.no)}`;
           setOut('a_ann_out',t,true);markAnnShown();logAnnounce('代打',t);
           dhEvaluate();{const c=mkCmp('代打',t,cmpB,rowsOf(cur,game.dhState),[{type:'sub',order,out:oldNo,inn:d.no,oldPos:cmpPos,newPos:cmpPos}]);pushOrdLog(c);showCmp('a_cmpBox',c);}
           render();renderLive();save();
@@ -2660,11 +2714,11 @@ function dropToBase(d,key){
     }else if(isBase){
       const b=+key,occ=F.bases[b];
       if(!occ){toast('その塁には走者がいません。代走は、走者のいる塁へドラッグしてください。');return}
-      const slot=lineupRows().find(r=>r.no===occ);if(!slot)return; /* 打順のある枠（大谷ルールで同一選手が2枠あっても走者は打順枠） */
+      const slot=lineupRows().find(r=>r.no===occ);if(!slot){toast('この走者は打順に入っていないため、代走に変更できません。\n操作を間違えた場合は「戻る」ボタンを押してください。','warn');return;} /* 打順のある枠（大谷ルールで同一選手が2枠あっても走者は打順枠） */
       if(!dhCanEnter(d.no))return;
-      dhGuardReplace(slot,(exc)=>{
+      const baseKanji={1:'一',2:'二',3:'三'}[b];
+      const runNormal=()=>dhGuardReplace(slot,(exc)=>{
         snapshot();if(exc)dhSetException(exc);
-        const baseKanji={1:'一',2:'二',3:'三'}[b];
         const cmpB=rowsOf(cur,game.dhState),cmpPos=slot.pos,cmpOrder=slot.order;
         if(!substituteBench(d.no,slot.slot)){undoStack.pop();return}
         F.bases[b]=d.no;
@@ -2676,6 +2730,7 @@ function dropToBase(d,key){
           render();renderLive();save();
         });
       });
+      runNormal();
       return;
     }else{toast('ベンチの選手は、打席（代打）または塁上の走者（代走）へドラッグしてください。');return}
   }else if(d.src==='batter'){
