@@ -770,7 +770,7 @@ table.fsb .fs-none{color:var(--sub);opacity:.45;font-weight:400}
   <div style="font-size:12px;color:var(--sub);margin-bottom:8px">「編集」で名前・背番号を変更、「削除」で退団などの選手を外せます。過去の試合履歴・保存済みメンバー表・途中保存した試合では、削除した選手（背番号を変えた前の番号を含む）の名前の表示が残ります。</div>
   <div id="mp_list"></div>
   <div class="bar"><button onclick="exportRoster()">書き出し</button><button onclick="$('rosterFile').click()">読み込み</button></div>
-  <div style="font-size:12px;color:var(--sub);margin:6px 0 0">「書き出し」は登録選手（背番号・名前）をExcelファイル（.xlsx）に保存します。Excelで編集（A列＝背番号、B列＝名前、1行目は見出し）して「読み込み」で取り込むこともできます。別の端末や次の学年のチームへ渡すときにもお使いください。</div>
+  <div style="font-size:12px;color:var(--sub);margin:6px 0 0">「書き出し」は登録選手（背番号・名前）をExcelファイル（.xlsx）に保存します。Excelで編集（A列＝背番号、B列＝名前、C列＝学年色［ブルー／オレンジ／パープル。空欄は現在の色のまま］、1行目は見出し）して「読み込み」で取り込むこともできます。別の端末や次の学年のチームへ渡すときにもお使いください。</div>
   <input type="file" id="rosterFile" accept=".xlsx,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json" style="display:none" onchange="importRosterFile(this)">
   <div class="bar"><button onclick="$('managePlayerModal').classList.add('hide')">閉じる</button></div>
 </div></div>
@@ -2054,15 +2054,15 @@ const xlEsc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g
 function buildRosterXlsx(players){
   const X='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
   const cell=(r,c,v,st)=>typeof v==='number'?`<c r="${c}${r}" s="${st}"><v>${v}</v></c>`:`<c r="${c}${r}" s="${st}" t="inlineStr"><is><t>${xlEsc(v)}</t></is></c>`;
-  let rows=`<row r="1">${cell(1,'A','背番号',1)}${cell(1,'B','名前',1)}</row>`;
-  players.forEach((x,i)=>{rows+=`<row r="${i+2}">${cell(i+2,'A',x.no,2)}${cell(i+2,'B',x.name,3)}</row>`;});
+  let rows=`<row r="1">${cell(1,'A','背番号',1)}${cell(1,'B','名前',1)}${cell(1,'C','学年色',1)}</row>`;
+  players.forEach((x,i)=>{rows+=`<row r="${i+2}">${cell(i+2,'A',x.no,2)}${cell(i+2,'B',x.name,3)}${cell(i+2,'C',GRADE_NAMES[x.g||0],3)}</row>`;});
   return xlZip([
    {name:'[Content_Types].xml',data:X+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'},
    {name:'_rels/.rels',data:X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'},
    {name:'xl/workbook.xml',data:X+'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="登録選手" sheetId="1" r:id="rId1"/></sheets></workbook>'},
    {name:'xl/_rels/workbook.xml.rels',data:X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'},
    {name:'xl/styles.xml',data:X+'<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Meiryo UI"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Meiryo UI"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1F5FBF"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center"/></xf><xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'},
-   {name:'xl/worksheets/sheet1.xml',data:X+`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="10" customWidth="1"/><col min="2" max="2" width="20" customWidth="1"/></cols><sheetData>${rows}</sheetData></worksheet>`}
+   {name:'xl/worksheets/sheet1.xml',data:X+`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="10" customWidth="1"/><col min="2" max="2" width="20" customWidth="1"/><col min="3" max="3" width="12" customWidth="1"/></cols><sheetData>${rows}</sheetData></worksheet>`}
   ]);
 }
 async function xlInflate(u8){
@@ -2128,7 +2128,7 @@ async function deliverFile(blob,fname,mime){
 const XLSX_MIME='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 async function exportRoster(){
   try{
-    const players=Object.keys(MASTER_ACTIVE).map(Number).sort((x,y)=>x-y).map(n=>({no:n,name:MASTER_ACTIVE[n]}));
+    const players=Object.keys(MASTER_ACTIVE).map(Number).sort((x,y)=>x-y).map(n=>({no:n,name:MASTER_ACTIVE[n],g:gradeOf(n)}));
     if(!players.length){cfm('書き出せません','書き出す登録選手がいません。',[{label:'閉じる',cls:'ok'}],{center:true});return;}
     const d=new Date(),p2=x=>String(x).padStart(2,'0');
     const fname=`登録選手_${d.getFullYear()}${p2(d.getMonth()+1)}${p2(d.getDate())}.xlsx`;
@@ -2165,26 +2165,29 @@ async function importRosterFile(inp){
   try{
     if(/\.json$/i.test(f.name)){ /* 以前に書き出したJSONファイルも読み込める */
       const data=JSON.parse(await f.text());arr=Array.isArray(data)?data:(data&&data.players);
-      if(Array.isArray(arr))arr=arr.map(x=>[x&&x.no,x&&x.name]);
+      if(Array.isArray(arr))arr=arr.map(x=>[x&&x.no,x&&x.name,x&&(x.grade!=null?x.grade:x.g)]);
     }else{
       let rows=await readXlsxRows(await f.arrayBuffer());
-      rows=rows.map(r=>[r&&r[0]!=null?String(r[0]).trim():'',r&&r[1]!=null?String(r[1]).trim():'']).filter(r=>r[0]||r[1]);
+      rows=rows.map(r=>[r&&r[0]!=null?String(r[0]).trim():'',r&&r[1]!=null?String(r[1]).trim():'',r&&r[2]!=null?String(r[2]).trim():'']).filter(r=>r[0]||r[1]);
       if(rows.length&&isNaN(Number(rows[0][0]))&&rows[0][0]!=='')rows.shift(); /* 1行目が見出し（背番号・名前）なら除く */
       arr=rows;
     }
   }catch(e){fail('ファイルの形式が正しくありません。\n本アプリで書き出したExcelファイル（.xlsx）を選んでください。');return;}
   if(!Array.isArray(arr)||!arr.length){fail('登録選手のデータが見つかりません。\nA列に背番号、B列に名前（1行目は見出し）を入力してください。');return;}
-  const imp={},bad=[];
+  const imp={},impG={},bad=[];
+  /* 学年色：「ブルー／オレンジ／パープル」（または1〜3）。空欄・不明な値は、いまの色を変えない */
+  const parseG=v=>{if(v==null||v==='')return null;const t=String(v).trim(),k=GRADE_NAMES.indexOf(t);if(k>=0)return k;if(/^[0-2]$/.test(t))return +t;return null;};
   arr.forEach((x,i)=>{
     const n=Number(x[0]),nm=String(x[1]!=null?x[1]:'').trim();
     if(!Number.isInteger(n)||n<1||n>99||!nm||nm.length>8||badNameCh.test(nm)||(n in imp)){bad.push(i+2);return;}
-    imp[n]=nm;
+    imp[n]=nm;const g=parseG(x[2]);if(g!=null)impG[n]=g;
   });
   if(bad.length){fail(`${bad.slice(0,5).join('、')}行目${bad.length>5?'ほか':''}の背番号・名前に問題があります。\n（背番号は1〜99で重複なし、名前は8文字まで）`);return;}
   const cnt=Object.keys(imp).length;
   const doImport=replace=>{
     const na=replace?imp:Object.assign({},MASTER_ACTIVE,imp);
     if(!commitRoster(na)){fail('ブラウザの保存領域をご確認ください。');return;}
+    Object.keys(impG).forEach(n=>setGrade(+n,impG[n]));
     if(game.official)drawNumOverride();
     drawSetup();drawManageList();save();
     toast(`${cnt}名を読み込みました（${replace?'置き換え':'追加・更新'}）。登録選手は${Object.keys(MASTER_ACTIVE).length}名です。`,'ok');
