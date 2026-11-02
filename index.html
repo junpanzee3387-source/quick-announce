@@ -53,6 +53,8 @@ h3{margin:0 0 8px;font-size:13px;color:var(--sub)}
 .slot{position:absolute;transform:translate(-50%,-50%)}
 .card{-webkit-touch-callout:none;touch-action:none;user-select:none;-webkit-user-select:none;background:var(--card);border:2px solid var(--line);border-radius:10px;padding:4px 8px;min-width:92px;text-align:center;line-height:1.25;cursor:grab}
 .card .pos{font-size:11px;color:var(--sub);white-space:nowrap}.card .nm{font-size:15px;font-weight:700;white-space:nowrap}.card .no{color:var(--accent)}
+.card.tint{background:color-mix(in srgb,var(--pc) 15%,var(--card));border-color:color-mix(in srgb,var(--pc) 45%,var(--line))}
+.order.tint{background:color-mix(in srgb,var(--pc) 13%,transparent);border-radius:6px}
 .card.changed{border-color:var(--warn);box-shadow:0 0 0 2px var(--warn)}
 .card.over{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent)}
 .card.prov{border-color:var(--warn);background:var(--bg)}
@@ -853,7 +855,10 @@ if(!game.numOverride)game.numOverride={};
 base.rmOrder={};cur.rmOrder=cur.rmOrder||{};
 const nm=n=>MASTER[n]+'君';
 const $=id=>document.getElementById(id);
-function card(no,pos,extra,cls){return `<div class="card ${cls||''}" data-no="${no}" ${extra||''}>${pos?`<div class="pos">${pos}</div>`:''}<div class="nm"><span class="no">${dispNo(no)}</span> ${MASTER[no]}</div></div>`}
+/* 登録選手に学年色が2色以上あるときだけ、選手カード・打順表を薄い色で色分けする */
+function gradeMix(){const g=loadGrades(),s=new Set();Object.keys(MASTER_ACTIVE).forEach(n=>{const v=+g[n];s.add((v===1||v===2)?v:0);});return s.size>=2;}
+function gradeCls(no){return gradeMix()?` gc${gradeOf(no)} tint`:'';}
+function card(no,pos,extra,cls){return `<div class="card ${cls||''}${gradeCls(no)}" data-no="${no}" ${extra||''}>${pos?`<div class="pos">${pos}</div>`:''}<div class="nm"><span class="no">${dispNo(no)}</span> ${MASTER[no]}</div></div>`}
 function diff(){
   const subs=[],moves=[];
   cur.slots.forEach((c,i)=>{const b=base.slots[i];
@@ -954,7 +959,7 @@ function lineupRows(noEval){
 function rowPosLabel(r){return r.pos?PN[r.pos]:'－';}
 function lineupOnlyPitcher(rows){const P=pitcherSlotOf(cur.slots);if(game.dh&&game.dhState&&game.dhState.voided&&rows.some(r=>r.pos==='投'))return null; /* DH消滅後は投手も打順の中にいる */
   return (P&&!rows.some(r=>r.no===P.no&&r.pos==='投'))?P:null;}
-function lineupRowHtml(r,extra){return `<div class="order ${extra&&extra.cur?'curbat':''}">${extra&&'arrow' in extra?`<span class="arrow">${extra.cur?'▶':''}</span>`:''}<b>${r.order}</b><span class="p">${rowPosLabel(r)}</span><span class="no">${dispNo(r.no)}</span><span class="nm">${MASTER[r.no]}</span></div>`;}
+function lineupRowHtml(r,extra){return `<div class="order ${extra&&extra.cur?'curbat':''}${gradeCls(r.no)}">${extra&&'arrow' in extra?`<span class="arrow">${extra.cur?'▶':''}</span>`:''}<b>${r.order}</b><span class="p">${rowPosLabel(r)}</span><span class="no">${dispNo(r.no)}</span><span class="nm">${MASTER[r.no]}</span></div>`;}
 /* DH制消滅の一連処理：判定→打順再構築→両シート再描画→デバッグ出力（消滅を検知するすべての経路が dhAfterOp / voidDH 経由でここへ来る） */
 function dhVoidSync(tag){
   const rows=lineupRows(),E=game.dhState;
