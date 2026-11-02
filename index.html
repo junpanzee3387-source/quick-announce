@@ -64,8 +64,16 @@ h3{margin:0 0 8px;font-size:13px;color:var(--sub)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 label{font-size:12px;color:var(--sub);display:block}
 input,select{font:inherit;width:100%;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
-.chip{padding:8px 10px;border-radius:10px;border:2px solid var(--line);text-align:center;font-weight:700;cursor:pointer;user-select:none}
-.chip small{display:block;font-size:10px;font-weight:400}.st0{opacity:.45}.st1{border-color:var(--accent)}.st2{background:var(--accent);color:#fff;border-color:var(--accent)}
+.chip{--pc:var(--accent);padding:8px 10px;border-radius:10px;border:2px solid var(--line);text-align:center;font-weight:700;cursor:pointer;user-select:none}
+.chip small{display:block;font-size:10px;font-weight:400}.st0{opacity:.45}.st1{border-color:var(--pc)}.st2{background:var(--pc);color:#fff;border-color:var(--pc)}
+/* 登録選手の学年色（3色で循環）：0＝ブルー（従来色）／1＝オレンジ／2＝パープル */
+:root{--g0:#1f5fbf;--g1:#d96c00;--g2:#8e44ad}
+:root[data-theme="dark"]{--g0:#2f6fcf;--g1:#d96c00;--g2:#8e44ad}
+.gc0{--pc:var(--g0)}.gc1{--pc:var(--g1)}.gc2{--pc:var(--g2)}
+.gsw{width:34px;height:34px;min-height:0;padding:0;border-radius:50%;border:3px solid var(--line);background:var(--pc);flex:0 0 auto}
+.gsel{display:flex;gap:8px;margin-top:6px}
+.gsel button{flex:1;min-height:40px;padding:6px;border:3px solid var(--line);background:var(--pc);color:#fff;font-size:13px}
+.gsel button.on{border-color:var(--ink)}
 .lrow{display:grid;grid-template-columns:24px 160px 1fr;gap:8px;align-items:center;margin-bottom:6px}
 .coldrow{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap;font-size:13px}
 .coldrow input{width:64px}
@@ -761,9 +769,9 @@ table.fsb .fs-none{color:var(--sub);opacity:.45;font-weight:400}
   <h3 style="font-size:16px;color:var(--ink)">登録選手の管理</h3>
   <div style="font-size:12px;color:var(--sub);margin-bottom:8px">「編集」で名前・背番号を変更、「削除」で退団などの選手を外せます。過去の試合履歴・保存済みメンバー表・途中保存した試合では、削除した選手（背番号を変えた前の番号を含む）の名前の表示が残ります。</div>
   <div id="mp_list"></div>
-  <div class="bar"><button onclick="openAddPlayer()">＋ 選手を追加</button><button onclick="exportRoster()">書き出し</button><button onclick="$('rosterFile').click()">読み込み</button></div>
-  <div style="font-size:12px;color:var(--sub);margin:6px 0 0">「書き出し」は登録選手（背番号・名前）をファイルに保存します。別の端末や、次の学年のチームへ渡すときは、そのファイルを「読み込み」で取り込みます。</div>
-  <input type="file" id="rosterFile" accept=".json,application/json" style="display:none" onchange="importRosterFile(this)">
+  <div class="bar"><button onclick="exportRoster()">書き出し</button><button onclick="$('rosterFile').click()">読み込み</button></div>
+  <div style="font-size:12px;color:var(--sub);margin:6px 0 0">「書き出し」は登録選手（背番号・名前）をExcelファイル（.xlsx）に保存します。Excelで編集（A列＝背番号、B列＝名前、1行目は見出し）して「読み込み」で取り込むこともできます。別の端末や次の学年のチームへ渡すときにもお使いください。</div>
+  <input type="file" id="rosterFile" accept=".xlsx,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json" style="display:none" onchange="importRosterFile(this)">
   <div class="bar"><button onclick="$('managePlayerModal').classList.add('hide')">閉じる</button></div>
 </div></div>
 <div class="modal hide" id="addPlayerModal"><div class="box">
@@ -772,6 +780,8 @@ table.fsb .fs-none{color:var(--sub);opacity:.45;font-weight:400}
     <label>背番号（1〜99）<input id="ap_no" type="number" min="1" max="99" inputmode="numeric" onkeydown="if(event.key==='Enter'){event.preventDefault();addPlayerOk()}"></label>
     <label>名前（苗字など。8文字まで）<input id="ap_name" maxlength="8" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();addPlayerOk()}"></label>
   </div>
+  <div style="font-size:12px;color:var(--sub);margin-top:8px">名前の色（学年ごとに色分け）</div>
+  <div class="gsel" id="ap_g"></div>
   <div style="font-size:12px;color:var(--sub);margin-top:6px">追加した選手は、この端末に保存され、今後の試合でも選べます。追加直後は「ベンチ入り」の状態になります（タップで切り替えできます）。</div>
   <div id="ap_err" style="color:#d33;font-weight:700;font-size:13px;min-height:1.2em;margin-top:6px;white-space:pre-line"></div>
   <div class="bar"><button onclick="$('addPlayerModal').classList.add('hide')">キャンセル</button><button class="ok" onclick="addPlayerOk()">追加する</button></div>
@@ -782,6 +792,8 @@ table.fsb .fs-none{color:var(--sub);opacity:.45;font-weight:400}
     <label>背番号（1〜99）<input id="ep_no" type="number" min="1" max="99" inputmode="numeric" onkeydown="if(event.key==='Enter'){event.preventDefault();editPlayerOk()}"></label>
     <label>名前（8文字まで）<input id="ep_name" maxlength="8" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();editPlayerOk()}"></label>
   </div>
+  <div style="font-size:12px;color:var(--sub);margin-top:8px">名前の色（学年ごとに色分け）</div>
+  <div class="gsel" id="ep_g"></div>
   <div style="font-size:12px;color:var(--sub);margin-top:6px">名前だけを直した場合は、過去の履歴でも同じ背番号の名前が新しい名前で表示されます。背番号を変えた場合は、過去の履歴には変更前の背番号・名前がそのまま残ります。</div>
   <div id="ep_err" style="color:#d33;font-weight:700;font-size:13px;min-height:1.2em;margin-top:6px;white-space:pre-line"></div>
   <div class="bar"><button onclick="$('editPlayerModal').classList.add('hide')">キャンセル</button><button class="ok" onclick="editPlayerOk()">変更する</button></div>
@@ -1864,7 +1876,7 @@ function openSetup(){
 function closeSetup(){showPhase(F.phase);}
 function drawSetup(){
   const S=game.S,ns=Object.keys(MASTER);
-  $('s_p').innerHTML=ns.map(n=>`<div class="chip st${S.st[n]}" onclick="cyc(${n})">${dispNo(n)} ${MASTER[n]}<small>${['－','参加','ベンチ入り'][S.st[n]]}</small></div>`).join('');
+  $('s_p').innerHTML=ns.map(n=>`<div class="chip st${S.st[n]} gc${gradeOf(n)}" onclick="cyc(${n})">${dispNo(n)} ${MASTER[n]}<small>${['－','参加','ベンチ入り'][S.st[n]]}</small></div>`).join('');
   {const cntAttend=ns.filter(n=>S.st[n]>0).length,cntBench=ns.filter(n=>S.st[n]==2).length,cntNone=ns.filter(n=>S.st[n]==0).length;
    $('s_pcount').textContent=`登録選手：${ns.length}名（ベンチ入り：${cntBench}名／参加：${cntAttend-cntBench}名／不参加：${cntNone}名）`;}
   const battingPos=game.dh?POS.filter(p=>p!=='投').concat(['指']):POS;
@@ -1886,7 +1898,17 @@ function drawSetup(){
   }
 }
 /* ---- 選手の追加（登録シート） ---- */
-function openAddPlayer(){
+/* ---- 学年色（0=ブルー／1=オレンジ／2=パープル）：背番号ごとにこの端末へ保存。未設定は0（従来のブルー） ---- */
+const GRADE_KEY='yb_grade',GRADE_NAMES=['ブルー','オレンジ','パープル'];
+function loadGrades(){let g={};try{g=JSON.parse(localStorage.getItem(GRADE_KEY)||'{}')||{};}catch(e){g={};}return g;}
+function gradeOf(n){const v=+loadGrades()[n];return(v===1||v===2)?v:0;}
+function setGrade(n,v){const g=loadGrades();if(v)g[n]=v;else delete g[n];try{localStorage.setItem(GRADE_KEY,JSON.stringify(g));}catch(e){}}
+function cycGrade(n){setGrade(n,(gradeOf(n)+1)%3);drawSetup();drawManageList();}
+function gradeBtns(id,cur,fn){$(id).innerHTML=[0,1,2].map(v=>`<button type="button" class="gc${v}${v===cur?' on':''}" onclick="${fn}(${v})">${GRADE_NAMES[v]}</button>`).join('');}
+let apGrade=0;
+function apSetGrade(v){apGrade=v;gradeBtns('ap_g',v,'apSetGrade');}
+function epSetGrade(v){if(editingNo==null)return;setGrade(editingNo,v);gradeBtns('ep_g',v,'epSetGrade');drawSetup();drawManageList();}
+function openAddPlayer(){apSetGrade(0);
   $('ap_no').value='';$('ap_name').value='';$('ap_err').textContent='';
   $('addPlayerModal').classList.remove('hide');
   setTimeout(()=>{try{$('ap_no').focus()}catch(e){}},50);
@@ -1904,7 +1926,7 @@ function addPlayerOk(){
       localStorage.setItem(EXTRA_KEY,JSON.stringify(l));
       localStorage.setItem(REMOVED_KEY,JSON.stringify(loadRemovedPlayers().filter(x=>+x.no!==no))); /* 削除済みだった背番号を再び使う */
     }catch(e){err('保存に失敗しました。\nブラウザの保存領域をご確認ください。');return;}
-    delete MASTER_ARCHIVE[no];MASTER_ACTIVE[no]=name;
+    delete MASTER_ARCHIVE[no];MASTER_ACTIVE[no]=name;setGrade(no,apGrade);
     game.S.st[no]=2; /* 追加直後は「ベンチ入り」（初期状態と同じ） */
     $('addPlayerModal').classList.add('hide');
     if(game.official)drawNumOverride();
@@ -1923,7 +1945,7 @@ function openManagePlayers(){drawManageList();$('managePlayerModal').classList.r
 function drawManageList(){
   const el=$('mp_list');if(!el)return;
   const ns=Object.keys(MASTER);
-  el.innerHTML=ns.length?ns.map(n=>`<div class="histrow"><span>${n}　${MASTER[n]}</span><span style="display:flex;gap:6px"><button onclick="editPlayer(${n})">編集</button><button onclick="removePlayer(${n})">削除</button></span></div>`).join(''):'<small>登録選手がいません。「＋ 選手を追加」または「読み込み」で登録してください。</small>';
+  el.innerHTML=ns.length?ns.map(n=>`<div class="histrow"><span style="display:flex;align-items:center;gap:8px"><button class="gsw gc${gradeOf(n)}" onclick="cycGrade(${n})" aria-label="名前の色を切り替え"></button>${n}　${MASTER[n]}</span><span style="display:flex;gap:6px"><button onclick="editPlayer(${n})">編集</button><button onclick="removePlayer(${n})">削除</button></span></div>`).join(''):'<small>登録選手がいません。「＋ 選手を追加」または「読み込み」で登録してください。</small>';
 }
 /* 削除した番号の後始末：いまの登録シート（状態・打順・投手・公式戦背番号）から外す */
 function clearFromSetup(n){
@@ -1951,7 +1973,7 @@ function removePlayer(n){
 let editingNo=null;
 function editPlayer(n){
   if(MASTER_ACTIVE[n]==null)return;
-  editingNo=n;$('ep_no').value=n;$('ep_name').value=MASTER_ACTIVE[n];$('ep_err').textContent='';
+  editingNo=n;gradeBtns('ep_g',gradeOf(n),'epSetGrade');$('ep_no').value=n;$('ep_name').value=MASTER_ACTIVE[n];$('ep_err').textContent='';
   $('editPlayerModal').classList.remove('hide');
   setTimeout(()=>{try{$('ep_name').focus();$('ep_name').select()}catch(e){}},50);
 }
@@ -1972,6 +1994,7 @@ function editPlayerOk(){
     try{localStorage.setItem(EXTRA_KEY,JSON.stringify(ex));localStorage.setItem(REMOVED_KEY,JSON.stringify(rm));}
     catch(e){err('保存に失敗しました。\nブラウザの保存領域をご確認ください。');return;}
     if(nn!==old){
+      setGrade(nn,gradeOf(old));setGrade(old,0);
       const S=game.S;
       delete MASTER_ACTIVE[old];MASTER_ARCHIVE[old]=oldName;delete MASTER_ARCHIVE[nn];
       S.st[nn]=S.st[old];delete S.st[old];
@@ -2002,20 +2025,120 @@ function editPlayerOk(){
   else apply();
 }
 /* ---- 書き出し・読み込み（登録選手データ：背番号と名前） ---- */
-function exportRoster(){
-  const players=Object.keys(MASTER_ACTIVE).map(n=>({no:+n,name:MASTER_ACTIVE[n]}));
-  if(!players.length){toast('書き出す登録選手がいません。','warn');return;}
-  const text=JSON.stringify({app:'yakyuban-roster',version:1,exportedAt:new Date().toISOString(),players},null,1);
-  const d=new Date(),p2=x=>String(x).padStart(2,'0');
-  const fname=`登録選手_${d.getFullYear()}${p2(d.getMonth()+1)}${p2(d.getDate())}.json`;
-  try{ /* iPadなど：共有シート（「ファイルに保存」やAirDropなど）が使える場合はそちらを使う */
-    const file=new File([text],fname,{type:'application/json'});
-    if(navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file],title:'登録選手データ'}).catch(()=>{});return;}
+/* ---- 最小限のxlsx（Excel）読み書き：外部ライブラリなし・完全オフライン ---- */
+const XL_CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function xlCrc(u8){let c=0xFFFFFFFF;for(let i=0;i<u8.length;i++)c=XL_CRC[(c^u8[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function xlZip(files){ /* files:[{name,data(string)}] → Uint8Array（無圧縮のzip） */
+  const enc=new TextEncoder(),parts=[],cen=[];let off=0;
+  files.forEach(f=>{
+    const nb=enc.encode(f.name),d=enc.encode(f.data),crc=xlCrc(d);
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(6,0x0800,true);lh.setUint16(8,0,true);
+    lh.setUint16(10,0,true);lh.setUint16(12,0x21,true);lh.setUint32(14,crc,true);lh.setUint32(18,d.length,true);lh.setUint32(22,d.length,true);
+    lh.setUint16(26,nb.length,true);lh.setUint16(28,0,true);
+    parts.push(new Uint8Array(lh.buffer),nb,d);
+    const ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(8,0x0800,true);ch.setUint16(10,0,true);
+    ch.setUint16(12,0,true);ch.setUint16(14,0x21,true);ch.setUint32(16,crc,true);ch.setUint32(20,d.length,true);ch.setUint32(24,d.length,true);
+    ch.setUint16(28,nb.length,true);ch.setUint32(42,off,true);
+    cen.push(new Uint8Array(ch.buffer),nb);
+    off+=30+nb.length+d.length;
+  });
+  const cenLen=cen.reduce((a,x)=>a+x.length,0);
+  const end=new DataView(new ArrayBuffer(22));
+  end.setUint32(0,0x06054b50,true);end.setUint16(8,files.length,true);end.setUint16(10,files.length,true);end.setUint32(12,cenLen,true);end.setUint32(16,off,true);
+  const all=parts.concat(cen,[new Uint8Array(end.buffer)]),out=new Uint8Array(all.reduce((a,x)=>a+x.length,0));
+  let o=0;all.forEach(x=>{out.set(x,o);o+=x.length;});return out;
+}
+const xlEsc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function buildRosterXlsx(players){
+  const X='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+  const cell=(r,c,v,st)=>typeof v==='number'?`<c r="${c}${r}" s="${st}"><v>${v}</v></c>`:`<c r="${c}${r}" s="${st}" t="inlineStr"><is><t>${xlEsc(v)}</t></is></c>`;
+  let rows=`<row r="1">${cell(1,'A','背番号',1)}${cell(1,'B','名前',1)}</row>`;
+  players.forEach((x,i)=>{rows+=`<row r="${i+2}">${cell(i+2,'A',x.no,2)}${cell(i+2,'B',x.name,3)}</row>`;});
+  return xlZip([
+   {name:'[Content_Types].xml',data:X+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'},
+   {name:'_rels/.rels',data:X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'},
+   {name:'xl/workbook.xml',data:X+'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="登録選手" sheetId="1" r:id="rId1"/></sheets></workbook>'},
+   {name:'xl/_rels/workbook.xml.rels',data:X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'},
+   {name:'xl/styles.xml',data:X+'<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Meiryo UI"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Meiryo UI"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1F5FBF"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center"/></xf><xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'},
+   {name:'xl/worksheets/sheet1.xml',data:X+`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="10" customWidth="1"/><col min="2" max="2" width="20" customWidth="1"/></cols><sheetData>${rows}</sheetData></worksheet>`}
+  ]);
+}
+async function xlInflate(u8){
+  if(typeof DecompressionStream==='undefined')throw new Error('この端末のブラウザはExcelファイルの展開に対応していません。');
+  const ds=new DecompressionStream('deflate-raw'),w=ds.writable.getWriter();w.write(u8);w.close();
+  return new Uint8Array(await new Response(ds.readable).arrayBuffer());
+}
+async function xlUnzip(buf){ /* → {ファイル名: Uint8Array}（中央ディレクトリを参照。Excel保存のファイルにも対応） */
+  const u8=new Uint8Array(buf),dv=new DataView(buf),files={};
+  let e=u8.length-22;while(e>=0&&dv.getUint32(e,true)!==0x06054b50)e--;
+  if(e<0)throw new Error('xlsxファイルではありません。');
+  const n=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true);const dec=new TextDecoder();
+  for(let i=0;i<n;i++){
+    if(dv.getUint32(p,true)!==0x02014b50)break;
+    const method=dv.getUint16(p+10,true),csz=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),xl=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),lo=dv.getUint32(p+42,true);
+    const name=dec.decode(u8.subarray(p+46,p+46+nl));
+    const ds=lo+30+dv.getUint16(lo+26,true)+dv.getUint16(lo+28,true),raw=u8.subarray(ds,ds+csz);
+    files[name]=method===0?raw:(method===8?await xlInflate(raw):null);
+    p+=46+nl+xl+cl;
+  }
+  return files;
+}
+/* xlsx → [[A列,B列],…]（最初のシート。文字・数値どちらのセルも文字列で返す） */
+async function readXlsxRows(buf){
+  const files=await xlUnzip(buf),dec=new TextDecoder(),dp=new DOMParser();
+  const xml=n=>files[n]?dp.parseFromString(dec.decode(files[n]),'application/xml'):null;
+  const ss=[];const sx=xml('xl/sharedStrings.xml');
+  if(sx)Array.from(sx.getElementsByTagName('si')).forEach(si=>{ss.push(Array.from(si.getElementsByTagName('t')).map(t=>t.textContent).join(''));});
+  let sheetName=Object.keys(files).filter(k=>/^xl\/worksheets\/[^/]+\.xml$/.test(k)).sort()[0];
+  const wb=xml('xl/workbook.xml'),rel=xml('xl/_rels/workbook.xml.rels');
+  if(wb&&rel){const sh=wb.getElementsByTagName('sheet')[0],rid=sh&&(sh.getAttribute('r:id')||sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id'));
+    const r=Array.from(rel.getElementsByTagName('Relationship')).find(x=>x.getAttribute('Id')===rid);
+    if(r){let t=r.getAttribute('Target');t=t.charAt(0)==='/'?t.slice(1):'xl/'+t;if(files[t])sheetName=t;}}
+  const sd=xml(sheetName);if(!sd)throw new Error('シートが見つかりません。');
+  const col=ref=>{const m=/^([A-Z]+)/.exec(ref||'');if(!m)return -1;let c=0;for(const ch of m[1])c=c*26+ch.charCodeAt(0)-64;return c-1;};
+  return Array.from(sd.getElementsByTagName('row')).map(row=>{
+    const out=[];
+    Array.from(row.getElementsByTagName('c')).forEach(c=>{
+      const ci=col(c.getAttribute('r'));if(ci<0)return;
+      const t=c.getAttribute('t'),v=c.getElementsByTagName('v')[0];let val='';
+      if(t==='s')val=v?(ss[+v.textContent]||''):'';
+      else if(t==='inlineStr')val=Array.from(c.getElementsByTagName('t')).map(x=>x.textContent).join('');
+      else val=v?v.textContent:'';
+      out[ci]=val;
+    });
+    return out;
+  });
+}
+/* ファイルを端末へ渡す。共有シート（iPad：「ファイルに保存」など）が使えればそれを使い、だめならダウンロードリンクにする */
+async function deliverFile(blob,fname,mime){
+  try{
+    const file=new File([blob],fname,{type:mime});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{await navigator.share({files:[file],title:fname});return 'share';}
+      catch(e){if(e&&e.name==='AbortError')return 'cancel';} /* 共有に失敗したときはダウンロードへ */
+    }
   }catch(e){}
   const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([text],{type:'application/json'}));a.download=fname;
-  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
-  toast(`登録選手${players.length}名をファイルに書き出しました。\n（${fname}）`,'ok');
+  a.href=URL.createObjectURL(blob);a.download=fname;a.style.display='none';
+  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
+  return 'download';
+}
+const XLSX_MIME='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+async function exportRoster(){
+  try{
+    const players=Object.keys(MASTER_ACTIVE).map(Number).sort((x,y)=>x-y).map(n=>({no:n,name:MASTER_ACTIVE[n]}));
+    if(!players.length){cfm('書き出せません','書き出す登録選手がいません。',[{label:'閉じる',cls:'ok'}],{center:true});return;}
+    const d=new Date(),p2=x=>String(x).padStart(2,'0');
+    const fname=`登録選手_${d.getFullYear()}${p2(d.getMonth()+1)}${p2(d.getDate())}.xlsx`;
+    const blob=new Blob([buildRosterXlsx(players)],{type:XLSX_MIME});
+    const r=await deliverFile(blob,fname,XLSX_MIME);
+    if(r==='cancel')return;
+    cfm('書き出しました',`登録選手${players.length}名をExcelファイルにしました。\n（${fname}）\n\n${r==='share'?'共有画面で「ファイルに保存」などを選んで保存してください。':'ダウンロードしたファイルをご確認ください。'}`,[{label:'閉じる',cls:'ok'}],{center:true});
+  }catch(e){
+    cfm('書き出しに失敗しました',`原因：${e&&e.message?e.message:e}\n\nお手数ですが、この画面を添えて連絡してください。`,[{label:'閉じる',cls:'ok'}],{center:true});
+  }
 }
 /* 登録選手の一覧を newActive（{背番号:名前}）に入れ替える。外れた選手は名前を控えに残す（過去の履歴の表示用） */
 function commitRoster(newActive){
@@ -2035,33 +2158,39 @@ function commitRoster(newActive){
   Object.keys(newActive).forEach(n=>{if(S.st[n]==null)S.st[n]=2;}); /* 新しく入った選手は「ベンチ入り」 */
   return true;
 }
-function importRosterFile(inp){
+async function importRosterFile(inp){
   const f=inp.files&&inp.files[0];inp.value='';if(!f)return;
-  const rd=new FileReader();
-  rd.onerror=()=>toast('ファイルを読み込めませんでした。','warn');
-  rd.onload=()=>{
-    let data;try{data=JSON.parse(rd.result);}catch(e){toast('読み込めませんでした。\nファイルの形式が正しくありません。','warn');return;}
-    const arr=Array.isArray(data)?data:(data&&data.players);
-    if(!Array.isArray(arr)||!arr.length){toast('読み込めませんでした。\n登録選手のデータが見つかりません。','warn');return;}
-    const imp={},bad=[];
-    arr.forEach((x,i)=>{
-      const n=Number(x&&x.no),nm=String(x&&x.name!=null?x.name:'').trim();
-      if(!Number.isInteger(n)||n<1||n>99||!nm||nm.length>8||badNameCh.test(nm)||(n in imp)){bad.push(i+1);return;}
-      imp[n]=nm;
-    });
-    if(bad.length){toast(`読み込めませんでした。\n${bad.slice(0,5).join('、')}人目${bad.length>5?'ほか':''}の背番号・名前に問題があります。\n（背番号は1〜99で重複なし、名前は8文字まで）`,'warn');return;}
-    const cnt=Object.keys(imp).length;
-    const doImport=replace=>{
-      const na=replace?imp:Object.assign({},MASTER_ACTIVE,imp);
-      if(!commitRoster(na)){toast('読み込めませんでした。\nブラウザの保存領域をご確認ください。','warn');return;}
-      if(game.official)drawNumOverride();
-      drawSetup();drawManageList();save();
-      toast(`${cnt}名を読み込みました（${replace?'置き換え':'追加・更新'}）。登録選手は${Object.keys(MASTER_ACTIVE).length}名です。`,'ok');
-    };
-    cfm('登録選手を読み込みます',`ファイルの選手：${cnt}名\n\n【置き換える】いまの登録選手をすべて入れ替えます。ファイルにない選手は削除扱いになります（過去の履歴の名前表示は残ります）。\n\n【追加・更新】ファイルの選手を加え、同じ背番号の選手は名前を更新します。ほかの選手はそのまま残します。`,
-      [{label:'キャンセル'},{label:'追加・更新',cls:'ok',fn:()=>doImport(false)},{label:'置き換える',cls:'ok',fn:()=>doImport(true)}]);
+  const fail=m=>cfm('読み込めませんでした',m,[{label:'閉じる',cls:'ok'}],{center:true});
+  let arr;
+  try{
+    if(/\.json$/i.test(f.name)){ /* 以前に書き出したJSONファイルも読み込める */
+      const data=JSON.parse(await f.text());arr=Array.isArray(data)?data:(data&&data.players);
+      if(Array.isArray(arr))arr=arr.map(x=>[x&&x.no,x&&x.name]);
+    }else{
+      let rows=await readXlsxRows(await f.arrayBuffer());
+      rows=rows.map(r=>[r&&r[0]!=null?String(r[0]).trim():'',r&&r[1]!=null?String(r[1]).trim():'']).filter(r=>r[0]||r[1]);
+      if(rows.length&&isNaN(Number(rows[0][0]))&&rows[0][0]!=='')rows.shift(); /* 1行目が見出し（背番号・名前）なら除く */
+      arr=rows;
+    }
+  }catch(e){fail('ファイルの形式が正しくありません。\n本アプリで書き出したExcelファイル（.xlsx）を選んでください。');return;}
+  if(!Array.isArray(arr)||!arr.length){fail('登録選手のデータが見つかりません。\nA列に背番号、B列に名前（1行目は見出し）を入力してください。');return;}
+  const imp={},bad=[];
+  arr.forEach((x,i)=>{
+    const n=Number(x[0]),nm=String(x[1]!=null?x[1]:'').trim();
+    if(!Number.isInteger(n)||n<1||n>99||!nm||nm.length>8||badNameCh.test(nm)||(n in imp)){bad.push(i+2);return;}
+    imp[n]=nm;
+  });
+  if(bad.length){fail(`${bad.slice(0,5).join('、')}行目${bad.length>5?'ほか':''}の背番号・名前に問題があります。\n（背番号は1〜99で重複なし、名前は8文字まで）`);return;}
+  const cnt=Object.keys(imp).length;
+  const doImport=replace=>{
+    const na=replace?imp:Object.assign({},MASTER_ACTIVE,imp);
+    if(!commitRoster(na)){fail('ブラウザの保存領域をご確認ください。');return;}
+    if(game.official)drawNumOverride();
+    drawSetup();drawManageList();save();
+    toast(`${cnt}名を読み込みました（${replace?'置き換え':'追加・更新'}）。登録選手は${Object.keys(MASTER_ACTIVE).length}名です。`,'ok');
   };
-  rd.readAsText(f);
+  cfm('登録選手を読み込みます',`ファイルの選手：${cnt}名\n\n【置き換える】いまの登録選手をすべて入れ替えます。ファイルにない選手は削除扱いになります（過去の履歴の名前表示は残ります）。\n\n【追加・更新】ファイルの選手を加え、同じ背番号の選手は名前を更新します。ほかの選手はそのまま残します。`,
+    [{label:'キャンセル'},{label:'追加・更新',cls:'ok',fn:()=>doImport(false)},{label:'置き換える',cls:'ok',fn:()=>doImport(true)}]);
 }
 function setPitcherNo(v){game.S.pitcherNo=+v;drawSetup();}
 function setColdEnabled(on){
