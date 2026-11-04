@@ -1506,7 +1506,7 @@ function oppScoreAdj(d){
   const i=F.inning-1,c=typeof F.score.opp[i]==='number'?F.score.opp[i]:0;
   F.score.opp[i]=Math.max(0,c+d);
   const inp=$('opp_score_input');if(inp)inp.value=F.score.opp[i];
-  save();renderStatus();renderScoreboard();
+  save();renderStatus();renderScoreboard();scheduleWalkoff(600);
 }
 function pcClear(){const a=$('pc'),b=$('pt');if(a){a.value='';delete a.dataset.man;}if(b){b.value='';delete b.dataset.man;}}
 /* マウンドにいる投手＝確定済みの状態(base)の投手。投手が変わったら、この回・累計とも0に戻す */
@@ -2742,17 +2742,33 @@ function nextBatter(){F.paHalf=(F.paHalf||0)+1;F.batOrder=F.batOrder%9+1;F.pinch
      例：出塁した打者への代走。 */
 function markAnnShown(){F.annInAtBat=!F.pendingNextBatter;}
 function clearAnnAtBatEnd(){if(F.annInAtBat){F.annInAtBat=false;setOut('a_ann_out','生成前');}}
-/* さよなら勝ち：後攻（自チーム）が規定回（7回）以降の裏の攻撃で勝ち越した（リードした）時点で、3アウト前でも試合終了にできる。
-   「いいえ」を選んだ場合は続行し、得点が変わって再びリードしたときにだけ、もう一度確認する */
+/* さよなら（サヨナラ）：規定回（7回）以降の裏の攻撃で、後攻チームが勝ち越した（リードした）時点で試合終了。
+   ・自チームが後攻（自チームの攻撃中）でも、相手チームが後攻（守備中に相手得点を入力）でも判定する。
+   ・公式戦（背番号設定で「公式戦」を選択）：その時点で試合終了となる。確認表示では「試合終了」を選ぶ（入力ミスのときだけ「1つ前に戻す」：攻撃中は直前の操作を取り消し、守備中は相手得点を1点減らす。まだリードが残っていれば再度確認が出る）。
+   ・練習試合：両チームの合意があれば続行できる。「続ける」を選ぶと、その回の裏は再確認しない。 */
+let walkTimer=null;
+function scheduleWalkoff(ms){clearTimeout(walkTimer);walkTimer=setTimeout(checkWalkoff,ms==null?500:ms);}
 function checkWalkoff(){
-  if(F.phase!=='live'||F.gameOver||game.h!=='後攻'||F.half!=='裏'||F.inning<7||F.pendingHalfEnd||F.bso.o>=3)return;
+  if(F.phase!=='live'||F.gameOver||F.half!=='裏'||F.inning<7||F.pendingHalfEnd)return;
+  const ownHome=(game.h==='後攻');
+  if(ownHome&&F.bso.o>=3)return;
   if(!$('threeOutModal').classList.contains('hide'))return;
-  const o=totalOwn(),q=sum(F.score.opp);
-  if(!(o>q)){F.walkDecl=null;return;}
-  if(F.walkDecl===o)return;
+  const own=totalOwn(),opp=sum(F.score.opp);
+  const homeT=ownHome?own:opp,awayT=ownHome?opp:own;
+  if(!(homeT>awayT)){F.walkDecl=null;return;}
+  const key=F.inning+F.half,sig=key+'|'+homeT+'-'+awayT;
+  if(F.walkAgreed===key||F.walkDecl===sig)return;
   if(!['cfmModal','paModal','endSummaryModal'].every(id=>$(id).classList.contains('hide')))return;
-  cfm('さよなら勝ち',`${F.inning}回裏、${TEAM}が${o}対${q}とリードしました。\nこの時点で試合終了としますか？（3アウト前でも終了できます）`,
-    [{label:'いいえ（続ける）',fn:()=>{F.walkDecl=o;save();}},{label:'はい（試合終了）',cls:'ok',fn:()=>{F.gameOver=true;endGame(true);}}],{center:true});
+  const homeName=ownHome?TEAM:(game.o||'相手');
+  const title=ownHome?'さよなら勝ち':'さよなら負け';
+  const endIt={label:'試合終了',cls:'ok',fn:()=>{F.gameOver=true;endGame(true);}};
+  if(game.official){
+    cfm(title,`${F.inning}回裏、${homeName}が${homeT}対${awayT}とリードしました。\n公式戦のため、この時点で試合終了となります。\n\n得点の入力ミスの場合は「1つ前に戻す」を選んでください。`,
+      [{label:'1つ前に戻す',fn:()=>{if(isAttack())undoAttack();else oppScoreAdj(-1);}},endIt],{center:true});
+  }else{
+    cfm(title,`${F.inning}回裏、${homeName}が${homeT}対${awayT}とリードしました。\n公式戦ではこの時点で試合終了となります。\n\n両チームの合意のうえ、このまま試合を続行する場合は「続ける」を選んでください。`,
+      [{label:'続ける（両チーム合意）',fn:()=>{F.walkAgreed=key;save();}},endIt],{center:true});
+  }
 }
 function incOutCore(){F.bso.o++;if(F.bso.o>=3){F.pendingHalfEnd=true;F.showHalfEndButton=false;askThree=true;}} /* 画面更新後にモーダルで確認する（confirmは使わない） */
 function afterBatterOut(){
@@ -2932,13 +2948,13 @@ function renderLive(){
     $('a_removed').innerHTML=cur.removed.map(n=>(n in cur.rmOrder)?card(n,'仮退場','data-src="prov"','prov'):card(n,dhRetiredLabel(n),'data-src="removed"','removed')).join('')||'<small>なし</small>';
   }else{
     const val=F.score.opp[F.inning-1];
-    $('opp_score_wrap').innerHTML=`<div class="oppStep"><button onclick="oppScoreAdj(-1)" aria-label="1点減らす">−</button><input type="number" id="opp_score_input" min="0" inputmode="numeric" value="${val!=null?val:0}" onchange="F.score.opp[F.inning-1]=Math.max(0,+this.value||0);save();renderStatus();renderScoreboard();"><button class="pri" onclick="oppScoreAdj(1)" aria-label="1点増やす">＋</button></div>`;
+    $('opp_score_wrap').innerHTML=`<div class="oppStep"><button onclick="oppScoreAdj(-1)" aria-label="1点減らす">−</button><input type="number" id="opp_score_input" min="0" inputmode="numeric" value="${val!=null?val:0}" onchange="F.score.opp[F.inning-1]=Math.max(0,+this.value||0);save();renderStatus();renderScoreboard();scheduleWalkoff(600);"><button class="pri" onclick="oppScoreAdj(1)" aria-label="1点増やす">＋</button></div>`;
     renderPitchCtr();
   }
   $('undoBtn').disabled=!undoStack.length;
   const dUndo=$('defUndoBtn');if(dUndo)dUndo.disabled=!undoStack.length;
   if(askThree){askThree=false;setTimeout(showThreeOut,450);}
-  setTimeout(checkWalkoff,500);
+  scheduleWalkoff(500);
 }
 function hasPending(){const d=diff();return d.subs.length+d.moves.length>0;}
 function warnDefChange(before){
